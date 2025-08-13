@@ -650,6 +650,74 @@ app.post('/api/babysitters/login', async (req, res) => {
   }
 });
 
+// Babysitter Register
+app.post('/api/babysitters/register', async (req, res) => {
+  const {
+    name,
+    email,
+    password,
+    phone,
+    available_days,
+    available_from,
+    available_to,
+    about,
+    rate,
+    latitude,
+    longitude,
+    address
+  } = req.body;
+  let availableDaysArray = [];
+  if (Array.isArray(available_days)) {
+    availableDaysArray = available_days;
+  } else if (typeof available_days === "string") {
+    availableDaysArray = available_days.split(",").map(day => day.trim());
+  }
+  try {
+    if (!name || !email || !password || !available_days || !available_from || !available_to || !rate) {
+      return res.status(400).json({ error: 'All required fields must be filled.' });
+    }
+    
+    // 加密敏感信息
+    const encryptedEmail = encrypt(email);
+    const encryptedPhone = phone ? encrypt(phone) : null;
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const query = `
+      INSERT INTO babysitters
+      (name, email, password, phone, available_days, available_from, available_to, about, rate, latitude, longitude, address)
+      VALUES
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING id, name, email, latitude, longitude, address, created_at;
+    `;
+    const values = [
+      name,
+      encryptedEmail,
+      hashedPassword,
+      encryptedPhone,
+      availableDaysArray,
+      available_from,
+      available_to,
+      about,
+      rate,
+      latitude,
+      longitude,
+      address
+    ];
+    const result = await db.query(query, values);
+    
+    // 解密返回给客户端的数据
+    const babysitterData = decryptObject(result.rows[0]);
+    
+    res.status(201).json({
+      message: 'Babysitter registered successfully.',
+      babysitter: babysitterData
+    });
+  } catch (error) {
+    console.error('Error registering babysitter:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Babysitter Profile Get (Self)
 app.get('/api/babysitters/profile', authMiddleware, async (req, res) => {
   try {
