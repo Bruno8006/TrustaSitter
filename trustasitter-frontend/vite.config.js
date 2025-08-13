@@ -14,7 +14,8 @@ export default defineConfig({
       '/api': {
         target: 'https://largewc.org:3000',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
   },
